@@ -329,7 +329,7 @@ $('saveInvoiceBtn').addEventListener('click', () => {
     },
     items: items.map(it => {
       const c = state.catalog.find(x => x.code === it.code) || { name: it.code, pieces: 1 };
-      return { code: it.code, name: c.name, pieces: c.pieces, mold: c.mold || '', qty: it.qty, price: it.price, finish: it.finish, finishNote: it.finishNote };
+      return { code: it.code, name: c.name, pieces: c.pieces, components: (c.components || []).map(x => ({ mold: x.mold, qty: x.qty })), mold: c.mold || '', qty: it.qty, price: it.price, finish: it.finish, finishNote: it.finishNote };
     }),
     discount: t.discount, shippingCost: t.shipping, deposit: t.deposit,
     status: STATUSES[0],
@@ -425,19 +425,51 @@ function renderCatalog() {
       <td>${esc(c.name)}</td>
       <td>${c.pieces}</td>
       <td>${fmt(c.price)}</td>
-      <td>${esc(c.mold || '—')}</td>
+      <td>${esc(componentsSummary(c))}</td>
       <td><div class="row-actions">
         <button class="btn btn-outline btn-sm" data-cat-edit="${esc(c.code)}">تعديل</button>
         <button class="btn btn-danger btn-sm" data-cat-del="${esc(c.code)}">حذف</button>
       </div></td>
     </tr>`).join('');
 }
+function componentsSummary(c) {
+  const comps = c.components || [];
+  if (comps.length) return comps.map(x => x.mold + ' ×' + x.qty).join(' + ');
+  return c.mold || '—';
+}
+function addComponentRow(mold, qty) {
+  const row = document.createElement('div');
+  row.className = 'component-row';
+  row.innerHTML = `
+    <input type="text" class="comp-mold" placeholder="اسم أو كود القالب">
+    <input type="number" class="comp-qty" min="1" step="1" placeholder="قطع/طقم">
+    <button type="button" class="btn btn-danger btn-sm comp-del">حذف</button>`;
+  row.querySelector('.comp-mold').value = mold || '';
+  if (qty != null) row.querySelector('.comp-qty').value = qty;
+  $('componentsList').appendChild(row);
+  row.querySelector('.comp-mold').focus();
+}
+$('addComponentBtn').addEventListener('click', () => addComponentRow('', null));
+$('componentsList').addEventListener('click', e => {
+  if (e.target.classList.contains('comp-del')) e.target.closest('.component-row').remove();
+});
+function collectComponents() {
+  const out = [];
+  let incomplete = false;
+  document.querySelectorAll('#componentsList .component-row').forEach(r => {
+    const mold = r.querySelector('.comp-mold').value.trim();
+    const rawQty = r.querySelector('.comp-qty').value;
+    if ((!mold && rawQty !== '') || (mold && rawQty === '')) { incomplete = true; return; }
+    if (mold) out.push({ mold, qty: Math.max(1, Math.round(num(rawQty)) || 1) });
+  });
+  return incomplete ? null : out;
+}
 function clearCatalogForm() {
   editingCatCode = null;
   $('catalogFormTitle').textContent = 'إضافة صنف جديد';
   $('catCode').value = ''; $('catCode').disabled = false;
   $('catName').value = ''; $('catPieces').value = 3; $('catPrice').value = 0;
-  $('catMold').value = '';
+  $('componentsList').innerHTML = '';
   $('cancelEditCatBtn').classList.add('hidden');
 }
 $('saveCatalogBtn').addEventListener('click', () => {
@@ -445,15 +477,16 @@ $('saveCatalogBtn').addEventListener('click', () => {
   const name = $('catName').value.trim();
   const pieces = Math.max(1, Math.round(num($('catPieces').value)));
   const price = num($('catPrice').value);
-  const mold = $('catMold').value.trim();
   if (!code || !name) { toast('أدخل كود الصنف واسمه', true); return; }
+  const components = collectComponents();
+  if (components === null) { toast('أكمل اسم القالب وعدد قطعه في الطقم لكل مكوّن، أو احذف الصف غير المكتمل', true); return; }
   if (editingCatCode) {
     const c = state.catalog.find(x => x.code === editingCatCode);
-    if (c) { c.name = name; c.pieces = pieces; c.price = price; c.mold = mold; }
+    if (c) { c.name = name; c.pieces = pieces; c.price = price; c.components = components; delete c.mold; }
     toast('تم تعديل الصنف ' + editingCatCode);
   } else {
     if (state.catalog.some(x => x.code === code)) { toast('الكود ' + code + ' موجود بالفعل', true); return; }
-    state.catalog.push({ code, name, pieces, price, mold });
+    state.catalog.push({ code, name, pieces, price, components });
     toast('تمت إضافة الصنف ' + code);
   }
   save(); renderCatalog(); clearCatalogForm();
@@ -468,7 +501,9 @@ document.querySelector('#catalogTable tbody').addEventListener('click', e => {
     $('catalogFormTitle').textContent = 'تعديل الصنف ' + c.code;
     $('catCode').value = c.code; $('catCode').disabled = true;
     $('catName').value = c.name; $('catPieces').value = c.pieces; $('catPrice').value = c.price;
-    $('catMold').value = c.mold || '';
+    $('componentsList').innerHTML = '';
+    (c.components || []).forEach(x => addComponentRow(x.mold, x.qty));
+    if (!c.components && c.mold) addComponentRow(c.mold, null);
     $('cancelEditCatBtn').classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -587,13 +622,54 @@ function printClientInvoice(inv) {
   window.print();
 }
 
+
+/* تجميعة القوالب: تحسب من تركيبة كل صنف المسجّلة في الكتالوج (لقطة داخل الفاتورة)،
+   وتسقط على الكتالوج الحالي للفواتير القديمة. الأصناف بلا تركيبة لا تدخل التجميعة. */
+function itemRecipe(it) {
+  if (Array.isArray(it.components)) return it.components;
+  const c = state.catalog.find(x => x.code === it.code);
+  return (c && c.components) || [];
+}
+function moldAggregation(inv) {
+  const totals = {};
+  const unconfigured = [];
+  inv.items.forEach(it => {
+    const recipe = itemRecipe(it);
+    if (!recipe.length) {
+      unconfigured.push({ name: it.name, code: it.code, qty: it.qty, pieces: it.qty * it.pieces });
+      return;
+    }
+    recipe.forEach(x => { totals[x.mold] = (totals[x.mold] || 0) + it.qty * x.qty; });
+  });
+  return { totals, unconfigured };
+}
+
+
+function moldSectionHtml(inv) {
+  const agg = moldAggregation(inv);
+  const molds = Object.entries(agg.totals);
+  let html = '<div class="p-notes"><h4>تجميعة القوالب للصب</h4>';
+  if (molds.length) {
+    html += '<table class="p-table"><thead><tr><th>القالب</th><th>إجمالي القطع المطلوب صبّها</th></tr></thead><tbody>' +
+      molds.map(([m, t]) => `<tr><td>${esc(m)}</td><td><b>${t}</b></td></tr>`).join('') +
+      '</tbody></table>';
+  } else {
+    html += '<ul><li>لا توجد أصناف بتركيبة قوالب مسجّلة في هذه الفاتورة — سجّل التركيبة من قسم «أصناف الكتالوج» لتظهر التجميعة هنا.</li></ul>';
+  }
+  if (agg.unconfigured.length) {
+    html += '<ul>' + agg.unconfigured.map(u =>
+      `<li>${esc(u.name)} (${esc(u.code)}): تركيبة القوالب غير مسجّلة — الإجمالي بالطقم فقط: ${u.qty} طقم = ${u.pieces} قطعة.</li>`).join('') + '</ul>';
+  }
+  return html + '</div>';
+}
+
 function printWorkshopSheet(inv) {
   if (!inv) return;
   const rows = inv.items.map((it, i) => `
     <tr>
       <td>${i + 1}</td>
       <td>${esc(it.code)}</td>
-      <td>${esc(it.name)}${it.mold ? '<div style="font-size:.78rem;color:#333">قوالب: ' + esc(it.mold) + '</div>' : ''}</td>
+      <td>${esc(it.name)}${itemRecipe(it).length ? '<div style="font-size:.78rem;color:#333">التركيبة: ' + esc(itemRecipe(it).map(x => x.mold + ' ×' + x.qty).join(' + ')) + '</div>' : (it.mold ? '<div style="font-size:.78rem;color:#333">قوالب: ' + esc(it.mold) + '</div>' : '')}</td>
       <td>${it.qty}</td>
       <td>${it.pieces}</td>
       <td><b>${it.qty * it.pieces}</b></td>
@@ -614,11 +690,12 @@ function printWorkshopSheet(inv) {
       <div><b>طريقة الشحن:</b> ${esc(inv.customer.shipping)}</div>
       <div><b>إجمالي الأطقم:</b> ${totalSets} طقم</div>
     </div>
-    <div class="p-notes"><h4>ملاحظة الصب</h4><ul><li>«إجمالي القطع للصب» = عدد الأطقم × عدد القطع في الطقم المسجّل في بطاقة الصنف، وتفاصيل القوالب تظهر فقط كما هي مسجّلة في الكتالوج — كلاهما قابل للتعديل من قسم «أصناف الكتالوج».</li></ul></div>
+    <div class="p-notes"><h4>ملاحظة الصب</h4><ul><li>«إجمالي القطع للصب» = عدد الأطقم × عدد القطع في الطقم المسجّل في بطاقة الصنف. «تجميعة القوالب» تحسب من تركيبة القوالب المسجّلة لكل صنف في الكتالوج، والاثنان قابلان للتعديل من قسم «أصناف الكتالوج».</li></ul></div>
     <table class="p-table">
-      <thead><tr><th>م</th><th>القالب / الكود</th><th>الصنف</th><th>الأطقم</th><th>قطع/طقم</th><th>إجمالي القطع للصب</th><th>التشطيب</th></tr></thead>
+      <thead><tr><th>م</th><th>الكود</th><th>الصنف</th><th>الأطقم</th><th>قطع/طقم</th><th>إجمالي القطع للصب</th><th>التشطيب</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    ${moldSectionHtml(inv)}
     <div class="p-notes">
       <h4>تقسيمة الألوان والتشطيبات (إجمالي القطع للصب: ${totalPieces} قطعة)</h4>
       <ul>${finishLines}</ul>
@@ -670,13 +747,21 @@ function workshopSummaryText(inv) {
   const lines = inv.items.map(it =>
     `• ${it.name} (${it.code}): ${it.qty} طقم × ${it.pieces} قطعة = ${it.qty * it.pieces} قطعة للصب — ${it.finish}${it.finishNote ? ' — ' + it.finishNote : ''}`);
   const totalPieces = inv.items.reduce((s, it) => s + it.qty * it.pieces, 0);
+  const agg = moldAggregation(inv);
+  const moldLines = Object.entries(agg.totals).map(([m, t]) => `• ${m}: ${t} قطعة`);
+  const moldBlock = moldLines.length
+    ? 'تجميعة القوالب للصب:\n' + moldLines.join('\n') + '\n'
+    : '';
+  const unconfBlock = agg.unconfigured.length
+    ? 'بدون تركيبة مسجّلة (بالطقم فقط): ' + agg.unconfigured.map(u => `${u.code} = ${u.qty} طقم (${u.pieces} قطعة)`).join('، ') + '\n'
+    : '';
   return `أمر تشغيل ورشة — فاتورة ${inv.number}
 التاريخ: ${fmtDate(inv.date)}
 العميل: ${inv.customer.name} — ${inv.customer.gov || '—'}
 ──────────
 ${lines.join('\n')}
 ──────────
-إجمالي الأطقم: ${invSets(inv)} — إجمالي القطع للصب: ${totalPieces}
+${moldBlock}${unconfBlock}إجمالي الأطقم: ${invSets(inv)} — إجمالي القطع للصب: ${totalPieces}
 دهانات Start و GLC حسب التقسيمة — التأسيس بالفيلر ثم الورنيش
 التغليف: بابل راب + كراتين`;
 }
