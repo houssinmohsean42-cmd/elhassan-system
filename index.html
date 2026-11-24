@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>elhassan home – بيت الحسن للديكور المنزلي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark">EH</div>
+      <div class="brand-text">
+        <h1 id="brandName">elhassan home</h1>
+        <span id="brandSub">بيت الحسن للديكور المنزلي</span>
+      </div>
+    </div>
+    <button id="menuToggle" class="menu-toggle" aria-label="القائمة">☰</button>
+  </div>
+  <nav class="main-nav" id="mainNav">
+    <button class="nav-btn active" data-section="dashboard">لوحة التحكم</button>
+    <button class="nav-btn" data-section="new-invoice">فاتورة جملة جديدة</button>
+    <button class="nav-btn" data-section="invoices">سجل الفواتير</button>
+    <button class="nav-btn" data-section="catalog">أصناف الكتالوج</button>
+    <button class="nav-btn" data-section="settings">النسخ الاحتياطي والإعدادات</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <!-- ============ لوحة التحكم ============ -->
+  <section id="section-dashboard" class="section active">
+    <h2 class="section-title">لوحة التحكم</h2>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3>الأوردرات قيد التشغيل</h3>
+        <span class="muted">غيّر حالة أي أوردر مباشرة</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="dashOrdersTable">
+          <thead>
+            <tr><th>رقم الفاتورة</th><th>العميل</th><th>المحافظة</th><th>الأطقم</th><th>الإجمالي</th><th>المتبقي</th><th>الحالة</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty-note" id="dashEmpty">لا توجد أوردرات قيد التشغيل حالياً.</p>
+    </div>
+  </section>
+
+  <!-- ============ فاتورة جديدة ============ -->
+  <section id="section-new-invoice" class="section">
+    <h2 class="section-title">فاتورة جملة جديدة</h2>
+
+    <div class="card">
+      <div class="card-head"><h3>بيانات الفاتورة والعميل</h3></div>
+      <div class="form-grid">
+        <label>رقم الفاتورة
+          <input type="text" id="invNumber" readonly>
+        </label>
+        <label>التاريخ
+          <input type="date" id="invDate">
+        </label>
+        <label>اسم العميل / المعرض <span class="req">*</span>
+          <input type="text" id="custName" placeholder="مثال: معرض النور للديكور">
+        </label>
+        <label>الموبايل
+          <input type="tel" id="custMobile" placeholder="01xxxxxxxxx">
+        </label>
+        <label>المحافظة
+          <input type="text" id="custGov" placeholder="مثال: الجيزة">
+        </label>
+        <label>مسؤول المبيعات
+          <input type="text" id="custRep" list="repList" placeholder="حسين أو أميرة">
+          <datalist id="repList"><option value="حسين"></option><option value="أميرة"></option></datalist>
+        </label>
+        <label>طريقة الشحن
+          <select id="custShipping">
+            <option>موقف ميكروباص</option>
+            <option>أوبر</option>
+            <option>شحن خاص</option>
+            <option>استلام من المصنع</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>بنود الفاتورة</h3>
+        <button class="btn btn-gold" id="addItemBtn">+ إضافة بند</button>
+      </div>
+      <div id="itemsList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>الحساب</h3></div>
+      <div class="totals-grid">
+        <label>الخصم (ج)
+          <input type="number" id="invDiscount" min="0" step="any" value="0">
+        </label>
+        <label>الشحن (ج)
+          <input type="number" id="invShippingCost" min="0" step="any" value="0">
+        </label>
+        <label>العربون المدفوع (ج)
+          <input type="number" id="invDeposit" min="0" step="any" value="0">
+        </label>
+      </div>
+      <div class="totals-summary" id="totalsSummary"></div>
+      <div class="actions-row">
+        <button class="btn btn-dark" id="saveInvoiceBtn">حفظ الفاتورة</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="postSaveCard">
+      <div class="card-head"><h3>الفاتورة محفوظة ✅ — <span id="savedInvNum"></span></h3></div>
+      <div class="actions-row wrap">
+        <button class="btn btn-gold" id="printClientBtn">معاينة وطباعة فاتورة العميل PDF</button>
+        <button class="btn btn-gold" id="printWorkshopBtn">ورقة تشغيل الورشة والدهان PDF</button>
+        <button class="btn btn-outline" id="copyClientBtn">نسخ ملخص الفاتورة للواتساب</button>
+        <button class="btn btn-outline" id="copyWorkshopBtn">نسخ أمر التشغيل للورشة واتساب</button>
+        <button class="btn btn-outline" id="newInvoiceBtn">فاتورة جديدة</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ سجل الفواتير ============ -->
+  <section id="section-invoices" class="section">
+    <h2 class="section-title">سجل الفواتير</h2>
+    <div class="card">
+      <div class="filters-row">
+        <input type="search" id="invSearch" placeholder="بحث باسم العميل أو الموبايل أو المحافظة…">
+        <select id="invStatusFilter">
+          <option value="">كل الحالات</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="invoicesTable">
+          <thead>
+            <tr><th>الرقم</th><th>التاريخ</th><th>العميل</th><th>موبايل</th><th>المحافظة</th><th>الإجمالي</th><th>العربون</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty-note" id="invEmpty">لا توجد فواتير مطابقة.</p>
+    </div>
+  </section>
+
+  <!-- ============ الكتالوج ============ -->
+  <section id="section-catalog" class="section">
+    <h2 class="section-title">أصناف الكتالوج</h2>
+    <div class="card">
+      <div class="card-head"><h3 id="catalogFormTitle">إضافة صنف جديد</h3></div>
+      <div class="form-grid">
+        <label>كود الصنف <span class="req">*</span>
+          <input type="text" id="catCode" placeholder="مثال: DON-01">
+        </label>
+        <label>اسم الصنف <span class="req">*</span>
+          <input type="text" id="catName" placeholder="مثال: دوناتس سادة">
+        </label>
+        <label>عدد القطع في الطقم
+          <input type="number" id="catPieces" min="1" step="1" value="3">
+        </label>
+        <label>سعر الطقم (ج)
+          <input type="number" id="catPrice" min="0" step="any" value="0">
+        </label>
+        <label>تفاصيل القوالب (اختياري — تظهر في ورقة الورشة)
+          <input type="text" id="catMold" placeholder="مثال: قالب كبير ×1 + قالب صغير ×2">
+        </label>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-dark" id="saveCatalogBtn">حفظ الصنف</button>
+        <button class="btn btn-outline hidden" id="cancelEditCatBtn">إلغاء التعديل</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>الأصناف الحالية</h3></div>
+      <div class="table-wrap">
+        <table class="data-table" id="catalogTable">
+          <thead><tr><th>الكود</th><th>الصنف</th><th>قطع/طقم</th><th>سعر الطقم</th><th>تفاصيل القوالب</th><th>إجراءات</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ الإعدادات والنسخ الاحتياطي ============ -->
+  <section id="section-settings" class="section">
+    <h2 class="section-title">النسخ الاحتياطي والإعدادات</h2>
+    <div class="card">
+      <div class="card-head"><h3>بيانات المصنع (تظهر في ترويسة الفواتير)</h3></div>
+      <div class="form-grid">
+        <label>اسم المصنع
+          <input type="text" id="setName">
+        </label>
+        <label>العنوان
+          <input type="text" id="setAddress">
+        </label>
+        <label>الهواتف
+          <input type="text" id="setPhones">
+        </label>
+        <label>الموقع
+          <input type="text" id="setWebsite">
+        </label>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-dark" id="saveSettingsBtn">حفظ البيانات</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>النسخ الاحتياطي</h3><span class="muted">كل البيانات محفوظة محلياً في هذا المتصفح</span></div>
+      <div class="actions-row wrap">
+        <button class="btn btn-gold" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
+        <label class="btn btn-outline file-btn">استيراد نسخة احتياطية
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </label>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- منطقة الطباعة -->
+<div id="printRoot" class="print-root"></div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
