@@ -170,9 +170,14 @@
         <label>سعر الطقم (ج)
           <input type="number" id="catPrice" min="0" step="any" value="0">
         </label>
-        <label>تفاصيل القوالب (اختياري — تظهر في ورقة الورشة)
-          <input type="text" id="catMold" placeholder="مثال: قالب كبير ×1 + قالب صغير ×2">
-        </label>
+        <div class="components-editor">
+          <div class="components-head">
+            <span><b>تركيبة القوالب</b> (اختياري — لكل مكوّن: اسم أو كود القالب، وعدد قطعه في الطقم الواحد)</span>
+            <button type="button" class="btn btn-outline btn-sm" id="addComponentBtn">+ إضافة مكوّن</button>
+          </div>
+          <div id="componentsList"></div>
+          <div class="components-hint">عند تسجيل التركيبة تحسب ورقة الورشة «عدد الأطقم × قطع المكوّن» وتجمعها لكل قالب تلقائياً. الصنف بدون تركيبة يظهر في الورشة بإجمالي الأطقم والقطع فقط مع تنبيه أن تركيبته غير مسجّلة.</div>
+        </div>
       </div>
       <div class="actions-row">
         <button class="btn btn-dark" id="saveCatalogBtn">حفظ الصنف</button>
@@ -183,7 +188,7 @@
       <div class="card-head"><h3>الأصناف الحالية</h3></div>
       <div class="table-wrap">
         <table class="data-table" id="catalogTable">
-          <thead><tr><th>الكود</th><th>الصنف</th><th>قطع/طقم</th><th>سعر الطقم</th><th>تفاصيل القوالب</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>الكود</th><th>الصنف</th><th>قطع/طقم</th><th>سعر الطقم</th><th>تركيبة القوالب</th><th>إجراءات</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
